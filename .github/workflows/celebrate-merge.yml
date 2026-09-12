@@ -1,0 +1,23 @@
+name: Celebrate merge
+
+# merge-cheer (github.com/YauhenBichel/merge-cheer): one G-rated GIF and a line about what landed
+# when a human pull request merges. Without the OPENAI_API_KEY secret it still cheers, with the
+# plain thank-you line. It never checks out the pull request head.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  celebrate:
+    if: github.event.pull_request.merged && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a commit, not the tag: this job has a write token on pull requests from anyone,
+      # and a tag can be moved.
+      - uses: YauhenBichel/merge-cheer@6daba95cfd238b1e8c823e193632678f295dc1a3 # v1.7.0
+        with:
+          model: gpt-4o-mini
+          model-api-key: ${{ secrets.OPENAI_API_KEY }}

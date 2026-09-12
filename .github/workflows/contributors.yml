@@ -1,0 +1,23 @@
+name: Contributors
+
+# readme-contributors (github.com/YauhenBichel/readme-contributors) draws the README's
+# contributors wall between the markers after every push to main, weekly and by hand, straight to
+# main. While main is unprotected the workflow token is enough; once it is protected, add a write
+# deploy key as the secret CONTRIBUTORS_DEPLOY_KEY and let deploy keys bypass the ruleset.
+# OPENAI_API_KEY (optional) writes the caption.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wall:
+    uses: YauhenBichel/readme-contributors/.github/workflows/wall.yml@6102d1fa62437f9f04020fe53627d503ac3dd26e # v1.9.1
+    with:
+      model: gpt-4o-mini
+    secrets: inherit
