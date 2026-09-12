@@ -5,8 +5,9 @@
 A plan for a mixture-of-experts model is only as good as three numbers: how much the GPU can hold,
 how much the system can hold, and how fast experts arrive from storage when they are in neither.
 The last one decides the speed and is the one nobody knows offhand, so it is measured here with
-O_DIRECT reads at the size an expert is actually read in - bypassing the page cache, which would
-otherwise report the speed of RAM.
+O_DIRECT reads - bypassing the page cache, which would otherwise report the speed of RAM - at the
+size the runtime actually fetches. That size matters more than the drive: the same NVMe here reads
+4.13 GB/s in 8 MiB chunks and 0.028 GB/s in 4 KiB ones.
 """
 from __future__ import annotations
 
@@ -63,13 +64,17 @@ def ram_bytes() -> int:
         return 0
 
 
-def measure_read(path: str | Path, block_bytes: int = 8 << 20, samples: int = 24,
+def measure_read(path: str | Path, block_bytes: int = 128 << 10, samples: int = 24,
                  file_bytes: int = 2 << 30) -> tuple[float | None, list[float], list[str]]:
     """Random reads of `block_bytes`, with the page cache bypassed, in bytes per second.
 
-    Experts are read in chunks of a few megabytes scattered across the file, which is nothing like
-    a sequential copy, so the benchmark matches that shape. O_DIRECT needs the buffer and the
-    offsets aligned to the block device's logical size; 4096 satisfies every current drive.
+    `block_bytes` is the whole argument. A drive that does 4.13 GB/s in 8 MiB chunks does 0.028 GB/s
+    in 4 KiB ones - measured here, a 147-fold spread - so a number quoted without its fetch size
+    means nothing. The default matches how llama.cpp actually reads a mapped model: page faults with
+    the kernel's readahead, not neat reads of whole tensors.
+
+    O_DIRECT needs the buffer and the offsets aligned to the block device's logical size; 4096
+    satisfies every current drive.
     """
     notes: list[str] = []
     directory = Path(path)
@@ -129,8 +134,17 @@ def measure_read(path: str | Path, block_bytes: int = 8 << 20, samples: int = 24
     return statistics.median(speeds), speeds, notes
 
 
+# How much a runtime fetches in one go. llama.cpp maps the model and lets the kernel fault pages
+# in, so the unit is a page plus readahead - 128 KiB by default on Linux - not the size of an
+# expert tensor. Measured on an NVMe drive here on 2026-09-12, the difference is not small:
+#   4 KiB 0.028 GB/s | 128 KiB 0.625 GB/s | 1 MiB 2.46 GB/s | 8 MiB 4.13 GB/s
+# Benchmarking at 8 MiB and predicting an mmap workload overstated the speed about twentyfold,
+# which a validation run caught (docs/validation-2026-09-12.md).
+MMAP_FETCH_BYTES = 128 << 10
+
+
 def describe(disk_path: str | Path | None = None, measure: bool = True,
-             block_bytes: int = 8 << 20) -> Machine:
+             block_bytes: int = MMAP_FETCH_BYTES) -> Machine:
     disk = Path(disk_path) if disk_path else Path.home() / ".cache" / "moe-fit"
     vram, notes = vram_bytes()
     usage = os.statvfs(disk if disk.exists() else disk.parent if disk.parent.exists() else Path.home())

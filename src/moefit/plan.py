@@ -25,8 +25,23 @@ from .gguf import Model
 from .machine import Machine
 
 # Held back from the GPU for the runtime's own allocations, and from system memory for the OS.
+# These are ceilings, not fixed amounts: taking 8 GB off a 6 GB machine leaves nothing and reports
+# that it cannot run a model it can run perfectly well. A small machine runs a small model, so the
+# reservation is a share of what is there, up to these limits.
 GPU_HEADROOM = 2_000_000_000
 OS_HEADROOM = 8_000_000_000
+GPU_HEADROOM_SHARE = 0.10
+OS_HEADROOM_SHARE = 0.20
+
+
+def usable_gpu(vram_bytes: int) -> int:
+    """GPU memory a model may use, after the runtime's own allocations."""
+    return max(0, vram_bytes - min(GPU_HEADROOM, int(vram_bytes * GPU_HEADROOM_SHARE)))
+
+
+def usable_ram(ram_bytes: int) -> int:
+    """System memory a model may use, after leaving the OS room to work."""
+    return max(0, ram_bytes - min(OS_HEADROOM, int(ram_bytes * OS_HEADROOM_SHARE)))
 # Experts are stored one tensor per projection per layer, so a layer is the smallest unit that can
 # be placed on one side or the other.
 @dataclass
@@ -103,8 +118,8 @@ def make(model: Model, machine: Machine, context: int | None = None,
     experts = model.expert_bytes
     kv = kv_cache_bytes(model, context, kv_bits)
 
-    gpu = max(0, machine.vram_bytes - GPU_HEADROOM)
-    ram = max(0, machine.ram_bytes - OS_HEADROOM)
+    gpu = usable_gpu(machine.vram_bytes)
+    ram = usable_ram(machine.ram_bytes)
 
     if resident + kv > gpu + ram:
         return Placement(

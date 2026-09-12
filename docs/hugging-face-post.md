@@ -25,10 +25,10 @@ On my machine (Ryzen AI MAX+ 395, 64 GiB VRAM + 62 GiB RAM, NVMe at 4.5 GB/s mea
 ```
 experts   394.0 GB, 7 layers on the GPU, 51 layers off it
 fetched   8.9 GB per token from storage
-runs at roughly 0.46-0.59 tokens per second
+runs at roughly 0.07-0.09 tokens per second
 ```
 
-About 20 words a minute. A considered answer, not a conversation — but knowing that in 3 seconds beats finding out after the download. It also prints the llama.cpp flags for the placement it worked out.
+About 66 minutes for a 200-word answer. It runs; it is not something you sit and wait for — and knowing that in 3 seconds beats finding out after a 405 GB download. It also prints the llama.cpp flags for the placement it worked out.
 
 ```
 pip install moe-fit

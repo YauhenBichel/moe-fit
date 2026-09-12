@@ -19,8 +19,8 @@ Deepseek-V3.1 on this machine
   kept in memory     108.3 GB of experts
   fetched per token  8.9 GB from storage (of 12.3 GB read)
 
-  runs at roughly 0.46-0.59 tokens per second
-  that is about 20 words a minute: usable for a considered answer, not for a conversation
+  runs at roughly 0.07-0.09 tokens per second
+  a 200-word answer would take about 66 minutes: this runs, but it is not something you sit and wait for
 ```
 
 That machine has 64 GiB of GPU memory and 62 GiB of system memory — **a sixth of the model** — and
@@ -38,7 +38,7 @@ Because almost none of it is needed at once. In DeepSeek V3.1:
 So the plan writes itself: put the 11.4 GB that every token needs on the GPU, fill the rest of the
 GPU with whole layers of experts, let system memory cache more of them, and read the remainder from
 storage as the router asks for it. Speed then comes down to one number — how fast your disk serves
-random multi-megabyte reads — which `moe-fit` measures rather than assumes.
+the small random reads a mapped file faults in — which `moe-fit` measures rather than assumes.
 
 This is not a new inference engine. It is the placement arithmetic that experienced people do by
 hand and that everyone else discovers after a very long download, plus the exact `llama.cpp`
@@ -91,14 +91,20 @@ other, the high end assumes the well-documented skew in expert routing helps by 
 default). **`moefit verify` is what turns the estimate into a measurement** — run it before
 believing a number.
 
-The storage benchmark uses `O_DIRECT` random reads at the size experts are actually fetched in.
-Where the kernel refuses `O_DIRECT` the tool says so, because a cached read would report the speed
-of RAM and flatter the result.
+The storage benchmark uses `O_DIRECT` random reads at the size the runtime actually fetches —
+128 KiB by default, which is what the kernel faults in for a mapped file. **That size matters more
+than the drive:** this NVMe does 4.13 GB/s in 8 MiB chunks and 0.028 GB/s in 4 KiB ones, a 147-fold
+spread, so a speed quoted without its fetch size means nothing. `moefit bench --profile` prints the
+curve. Where the kernel refuses `O_DIRECT` the tool says so, because a cached read would report the
+speed of RAM and flatter the result.
 
 ## Honest limitations
 
-- **Speed estimates are not yet validated against a wide range of real runs.** The arithmetic and
-  the measurement are sound; the cache-skew assumption is the soft part. Reports welcome.
+- **The speed model has been validated once, and it was wrong the first time.** Benchmarking at
+  8 MiB while llama.cpp faults 128 KiB pages overstated a real run by twentyfold; the whole
+  experiment, including the numbers that caught it, is in
+  [docs/validation-2026-09-12.md](docs/validation-2026-09-12.md). It is right on one model, one
+  machine, one runtime. Reports from other hardware are the contribution I most want.
 - Only `llama.cpp`-style GGUF is understood — not vLLM, not SGLang, not ktransformers, all of which
   place tensors differently and would deserve their own back end.
 - The KV cache estimate covers compressed-latent attention (DeepSeek's MLA) and ordinary
