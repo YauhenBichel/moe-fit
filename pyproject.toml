@@ -1,0 +1,43 @@
+[project]
+name = "moe-fit"
+version = "0.1.0"
+description = "Will this mixture-of-experts model run on this machine, and how fast? Answered from the model's index, before downloading it"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Yauhen Bichel" }]
+requires-python = ">=3.10"
+keywords = ["llm", "gguf", "mixture-of-experts", "llama.cpp", "deepseek", "offloading", "inference"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = []            # the standard library is enough, on purpose
+
+[project.scripts]
+moefit = "moefit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/YauhenBichel/moe-fit"
+Issues = "https://github.com/YauhenBichel/moe-fit/issues"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling>=1.26.2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/moefit"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "README.md", "LICENSE", "CHANGELOG.md"]
+exclude = ["docs/media/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]

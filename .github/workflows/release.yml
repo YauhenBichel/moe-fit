@@ -1,0 +1,50 @@
+name: release
+
+# Publishes to PyPI when a GitHub Release is published, with trusted publishing (OIDC): no API
+# token is stored anywhere. One-time setup on pypi.org by the owner: add a pending publisher for
+# project moe-fit, repository YauhenBichel/moe-fit, workflow release.yml, environment pypi.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: The tag matches the version in pyproject.toml
+        run: |
+          version=$(uv version --short)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME, pyproject $version"; exit 1; }
+      - name: Build sdist and wheel
+        run: uv build
+      - name: The wheel installs and its command runs
+        run: uvx --from dist/*.whl moefit --help
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/project/moe-fit/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

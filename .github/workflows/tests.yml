@@ -1,0 +1,28 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:          # release.yml runs exactly these tests, in exactly this environment
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: Tests (no network, no model files)
+        run: uv run --python ${{ matrix.python }} --with pytest pytest -q
+      - name: The command runs from a built wheel
+        run: |
+          uv build --wheel
+          uvx --from dist/*.whl moefit --help
+          uvx --from dist/*.whl moefit bench --no-measure
