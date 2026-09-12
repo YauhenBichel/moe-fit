@@ -62,7 +62,7 @@ def _machine_for(args: argparse.Namespace) -> machine.Machine:
     then running llama.cpp under a matching memory limit.
     """
     found = machine.describe(args.disk, measure=not args.no_measure,
-                             block_bytes=args.block_size << 20)
+                             block_bytes=args.fetch_kib << 10)
     if args.vram_gb is not None:
         found.vram_bytes = int(args.vram_gb * 1e9)
         found.notes.append(f"GPU memory overridden to {args.vram_gb} GB")
@@ -84,8 +84,15 @@ def cmd_bench(args: argparse.Namespace) -> int:
     print(f"  system memory      {_human(found.ram_bytes / 1e9)}")
     print(f"  free disk          {_human(found.free_disk_bytes / 1e9)}  ({found.disk_path})")
     if found.read_bytes_per_second:
-        print(f"  storage read       {found.read_bytes_per_second / 1e9:.2f} GB/s  "
-              f"(random {args.block_size} MiB reads, page cache bypassed)")
+        print(f"  storage read       {found.read_bytes_per_second / 1e9:.3f} GB/s  "
+              f"(random {args.fetch_kib} KiB reads, page cache bypassed)")
+    if not args.no_measure and args.profile:
+        print("\n  the same drive at other fetch sizes, because the spread is what decides speed:")
+        for kib in (4, 128, 1024, 8192):
+            speed, _, _ = machine.measure_read(found.disk_path, block_bytes=kib << 10, samples=24)
+            mark = "  <- used for the plan" if kib == args.fetch_kib else ""
+            print(f"    {kib:>5} KiB  {speed / 1e9:6.3f} GB/s{mark}" if speed else
+                  f"    {kib:>5} KiB  not measured")
     for note in found.notes:
         print(f"  note: {note}")
     return 0
@@ -117,10 +124,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print(f"\n  {placement.summary()}")
     if placement.tokens_per_second_estimate:
         low, _ = placement.tokens_per_second_estimate
-        if low < 5:
-            words = int(low * 60 * 0.75)
-            print(f"  that is about {words} words a minute: usable for a considered answer, "
-                  f"not for a conversation")
+        # A rate means little on its own; what people picture is how long an answer takes. 200 words
+        # is a paragraph or two, and about 270 tokens.
+        if low < 0.5:
+            minutes = 270 / low / 60
+            print(f"  a 200-word answer would take about {minutes:.0f} minutes: this runs, but it "
+                  f"is not something you sit and wait for")
+        elif low < 5:
+            print(f"  a 200-word answer would take about {270 / low / 60:.1f} minutes: fine for a "
+                  f"considered answer, too slow for a conversation")
         print("\n  This speed is an estimate from the measured read rate. "
               "Check it with: moefit verify")
     return 0
@@ -197,8 +209,9 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--disk", default=None,
                        help="where the model will live; its read speed is what gets measured")
         p.add_argument("--no-measure", action="store_true", help="skip the storage measurement")
-        p.add_argument("--block-size", type=int, default=8, metavar="MIB",
-                       help="read size for the storage measurement (default 8)")
+        p.add_argument("--fetch-kib", type=int, default=128, metavar="KIB",
+                       help="how much the runtime fetches at a time (default 128, llama.cpp's "
+                            "mmap readahead; larger values measure a speed it will not get)")
         p.add_argument("--vram-gb", type=float, default=None,
                        help="plan for this much GPU memory instead of what this machine has")
         p.add_argument("--ram-gb", type=float, default=None,
@@ -217,7 +230,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_model(p); p.add_argument("--json", action="store_true"); p.set_defaults(func=cmd_inspect)
 
     p = sub.add_parser("bench", help="measure this machine")
-    add_machine(p); p.add_argument("--json", action="store_true"); p.set_defaults(func=cmd_bench)
+    add_machine(p); p.add_argument("--json", action="store_true")
+    p.add_argument("--profile", action="store_true",
+                   help="also measure 4 KiB to 8 MiB, to show how much the fetch size matters")
+    p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("plan", help="placement and speed for this model on this machine")
     add_model(p); add_machine(p); add_plan(p)
