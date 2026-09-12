@@ -52,6 +52,14 @@ class Placement:
         if self.tokens_per_second_estimate is None:
             return "runs; speed unknown (storage was not measured)"
         low, high = self.tokens_per_second_estimate
+        # Nothing is fetched per token once everything fits, so the arithmetic gives no upper
+        # bound at all. Saying "infinity tokens per second" would be nonsense: what it means is
+        # that storage has stopped being the limit and compute decides the speed.
+        if high == float("inf") and low == float("inf"):
+            return "runs from memory: storage is not the limit, so compute decides the speed"
+        if high == float("inf"):
+            return (f"runs at {low:.2f} tokens per second or better; above that the experts are "
+                    f"cached often enough that storage stops being the limit")
         return f"runs at roughly {low:.2f}-{high:.2f} tokens per second"
 
 
