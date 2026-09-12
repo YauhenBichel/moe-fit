@@ -110,6 +110,13 @@ files byte by byte, so the whole suite runs in under a second with no network an
 uv run pytest -q
 ```
 
+## Contributors
+
+Thank you to everyone who has helped.
+
+<!-- readme: contributors,bots/- -start -->
+<!-- readme: contributors,bots/- -end -->
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE).
