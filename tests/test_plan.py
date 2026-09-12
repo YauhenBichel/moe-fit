@@ -28,6 +28,7 @@ def test_a_model_that_fits_entirely_needs_no_streaming(tmp_path: Path) -> None:
     assert placement.expert_layers_on_cpu == 0, "there is room for every expert on the GPU"
     assert placement.streamed_per_token_gb == 0
     assert placement.tokens_per_second_estimate[0] == float("inf")
+    assert "storage is not the limit" in placement.summary(), "no infinities in front of a reader"
 
 
 def test_a_model_whose_resident_part_is_too_big_will_not_run(tmp_path: Path) -> None:
@@ -110,3 +111,17 @@ def test_a_fully_resident_model_gets_no_offload_flag(tmp_path: Path) -> None:
     model = moe_model(tmp_path, layers=4)
     placement = plan.make(model, a_machine())
     assert "--n-cpu-moe" not in plan.llama_flags(model, placement, "/models/m.gguf")
+
+
+def test_a_partly_cached_model_reports_a_floor_not_an_infinity(tmp_path: Path) -> None:
+    """When the cache-skew guess wipes out the misses, the upper bound is unbounded. Printing
+    "inf tokens per second" would be nonsense; the floor with an explanation is the honest form."""
+    model = moe_model(tmp_path, layers=8, experts=32, used=4)
+    per_layer = next(iter(model.expert_bytes_per_layer().values()))
+    vram = model.resident_bytes + plan.GPU_HEADROOM + int(5.5 * per_layer)
+    placement = plan.make(model, a_machine(vram_gb=vram / GB, ram_gb=plan.OS_HEADROOM / GB),
+                          skew=4.0)
+    low, high = placement.tokens_per_second_estimate
+    assert low < float("inf") and high == float("inf")
+    assert "or better" in placement.summary()
+    assert "inf" not in placement.summary().replace("infinit", "")

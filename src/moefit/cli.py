@@ -54,8 +54,25 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 
 
 def _machine_for(args: argparse.Namespace) -> machine.Machine:
-    return machine.describe(args.disk, measure=not args.no_measure,
-                            block_bytes=args.block_size << 20)
+    """This machine, or the one described on the command line.
+
+    The overrides answer a different question from "will it run here": they answer "would it run on
+    a machine with this much memory", which is the question asked before buying one - and they are
+    how the speed model is checked, by planning for a machine small enough to force streaming and
+    then running llama.cpp under a matching memory limit.
+    """
+    found = machine.describe(args.disk, measure=not args.no_measure,
+                             block_bytes=args.block_size << 20)
+    if args.vram_gb is not None:
+        found.vram_bytes = int(args.vram_gb * 1e9)
+        found.notes.append(f"GPU memory overridden to {args.vram_gb} GB")
+    if args.ram_gb is not None:
+        found.ram_bytes = int(args.ram_gb * 1e9)
+        found.notes.append(f"system memory overridden to {args.ram_gb} GB")
+    if args.read_gb_s is not None:
+        found.read_bytes_per_second = args.read_gb_s * 1e9
+        found.notes.append(f"read speed overridden to {args.read_gb_s} GB/s")
+    return found
 
 
 def cmd_bench(args: argparse.Namespace) -> int:
@@ -182,6 +199,12 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--no-measure", action="store_true", help="skip the storage measurement")
         p.add_argument("--block-size", type=int, default=8, metavar="MIB",
                        help="read size for the storage measurement (default 8)")
+        p.add_argument("--vram-gb", type=float, default=None,
+                       help="plan for this much GPU memory instead of what this machine has")
+        p.add_argument("--ram-gb", type=float, default=None,
+                       help="plan for this much system memory instead of what this machine has")
+        p.add_argument("--read-gb-s", type=float, default=None,
+                       help="plan for this storage speed instead of measuring it")
 
     def add_plan(p: argparse.ArgumentParser) -> None:
         p.add_argument("--context", type=int, default=None, help="context length to plan for")

@@ -65,6 +65,12 @@ moefit verify MODEL      # run llama.cpp and compare the real speed with the est
 `MODEL` is a local `.gguf` file or an `https://` URL to one. A split model is followed across its
 shards automatically; only indexes are read, one small ranged request each.
 
+To ask about a machine you do not have — before buying memory, say — describe it instead:
+
+```bash
+moefit plan MODEL --vram-gb 24 --ram-gb 64 --read-gb-s 7
+```
+
 ```console
 $ moefit flags DeepSeek-V3.1-Q4_K_M-00001-of-00009.gguf
 --model DeepSeek-V3.1-Q4_K_M-00001-of-00009.gguf --ctx-size 16384 --n-gpu-layers 999 \
