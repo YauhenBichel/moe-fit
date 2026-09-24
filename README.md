@@ -26,6 +26,21 @@ Deepseek-V3.1 on this machine
 That machine has 64 GiB of GPU memory and 62 GiB of system memory — **a sixth of the model** — and
 the answer is still "yes, it runs", with an honest number attached.
 
+## What this is, and what a mixture of experts is
+
+**This is not a model.** It ships no weights and computes no tokens. It is a
+tool *about* models: it reads the safetensors index a repository publishes and
+works out whether that model fits your machine, and how fast it would run.
+
+The models it reads are **mixtures of experts (MoE)**. A dense model uses every
+parameter for every token. A MoE keeps many separate "expert" blocks and a small
+router picks a few of them per token — in DeepSeek V3.1, 8 of 256 — so the
+memory a model *occupies* and the compute it *uses* come apart completely. That
+gap is the whole reason this tool exists, and the table below is that gap.
+
+One correction worth making, because the popular diagrams get it wrong: routing
+happens per token and in every layer, not once per request or per conversation.
+
 ## Why a 405 GB model fits in 128 GB
 
 Because almost none of it is needed at once. In DeepSeek V3.1:
