@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 937 268" width="937" height="268" role="img" aria-label="Terminal output of moefit plan for DeepSeek V3.1: 405 GB model, runs at about 0.07 to 0.09 tokens per second">
+<rect width="937" height="268" rx="10" fill="#0d1117" stroke="#30363d"/>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13">
+<text x="24" y="28" fill="#7ee787" xml:space="preserve">$ moefit plan \</text>
+<text x="24" y="47" fill="#7ee787" xml:space="preserve">    https://huggingface.co/unsloth/DeepSeek-V3.1-GGUF/resolve/main/Q4_K_M/DeepSeek-V3.1-Q4_K_M-00001-of-00009.gguf</text>
+<text x="24" y="66" fill="#e6edf3" xml:space="preserve">Deepseek-V3.1 on this machine</text>
+<text x="24" y="85" fill="#e6edf3" xml:space="preserve"></text>
+<text x="24" y="104" fill="#e6edf3" xml:space="preserve">  model              405.4 GB</text>
+<text x="24" y="123" fill="#e6edf3" xml:space="preserve">  needed every token 11.4 GB of weights + 576 MB of KV cache at 16,384 context</text>
+<text x="24" y="142" fill="#e6edf3" xml:space="preserve">  experts            394.0 GB, 7 layers on the GPU, 51 layers off it</text>
+<text x="24" y="161" fill="#e6edf3" xml:space="preserve">  kept in memory     108.3 GB of experts</text>
+<text x="24" y="180" fill="#e6edf3" xml:space="preserve">  fetched per token  8.9 GB from storage (of 12.3 GB read)</text>
+<text x="24" y="199" fill="#e6edf3" xml:space="preserve"></text>
+<text x="24" y="218" fill="#e3b341" xml:space="preserve">  runs at roughly 0.07-0.09 tokens per second</text>
+<text x="24" y="237" fill="#e3b341" xml:space="preserve">  a 200-word answer would take about 66 minutes: this runs, but it is not something you sit and wait for</text>
+</g>
+</svg>
