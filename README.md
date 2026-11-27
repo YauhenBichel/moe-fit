@@ -23,6 +23,8 @@ Deepseek-V3.1 on this machine
   a 200-word answer would take about 66 minutes: this runs, but it is not something you sit and wait for
 ```
 
+![moefit plan output for DeepSeek V3.1: 405 GB model, runs at roughly 0.07 to 0.09 tokens per second](docs/media/moefit-plan.svg)
+
 That machine has 64 GiB of GPU memory and 62 GiB of system memory — **a sixth of the model** — and
 the answer is still "yes, it runs", with an honest number attached.
 
@@ -94,6 +96,21 @@ $ moefit flags DeepSeek-V3.1-Q4_K_M-00001-of-00009.gguf
 
 Feed those straight to `llama-server` or `llama-cli`.
 
+To try it without any model files, read only the index of a model on Hugging Face. This needs no GPU and
+works on any machine with Python 3.10 or newer (this output was captured on a Mac):
+
+```console
+$ pip install moe-fit
+$ moefit inspect https://huggingface.co/unsloth/DeepSeek-V3.1-GGUF/resolve/main/Q4_K_M/DeepSeek-V3.1-Q4_K_M-00001-of-00009.gguf
+Deepseek-V3.1  (deepseek2)
+  1,086 tensors, 61 layers, trained context 163,840
+  weights            405.4 GB
+  routed experts     394.0 GB  (97% of the model)
+  everything else    11.4 GB  <- every token needs all of this
+  experts            256, of which 8 run per token
+  read per token     12.3 GB
+```
+
 ## What the numbers mean, and how much to trust them
 
 **Structure is fact.** Sizes, expert share, what must be resident, bytes read per token and the
@@ -127,6 +144,40 @@ speed of RAM and flatter the result.
 - Prefill is not modelled. A long prompt reads far more than one token's worth of experts.
 - It does not make a slow model fast. If the answer is 0.5 tokens per second, that is the machine
   telling you something true.
+
+## FAQ
+
+### How do I know if a big MoE model will run on my GPU and RAM?
+
+Run `moefit plan MODEL` with a GGUF file or an `https://` URL. It reads the index, measures your memory and disk,
+and prints the placement and a speed range. Add `--vram-gb`, `--ram-gb` and `--read-gb-s` to ask about a machine
+you do not have.
+
+### Does it download the model?
+
+No. For a URL it makes small ranged HTTP requests for the index only. The server must support `Range` requests;
+Hugging Face does.
+
+### Does it send my data anywhere?
+
+No. The only network traffic is those requests to the URL you give it. `moefit bench` writes a test file named
+`.moefit-read-test` in the directory it measures (`--disk`) and reads it back. Delete it when you are done.
+`moefit verify` runs your own `llama.cpp`.
+
+### How is it different from a VRAM calculator?
+
+A simple VRAM calculator checks whether the whole model fits in GPU memory. This one plans for a model that does not: it puts
+what every token needs on the GPU, caches experts in system memory, reads the rest from storage, and estimates speed
+from your measured disk reads. See the limits above: the speed is an estimate.
+
+### Does it work with vLLM, SGLang or Ollama?
+
+Not yet. It understands `llama.cpp`-style GGUF only, and `moefit flags` prints `llama.cpp` arguments.
+
+### Does it run on macOS?
+
+`inspect` does. `plan` is built for Linux (the storage benchmark uses `O_DIRECT`), and it stops with "WILL NOT RUN"
+when the machine has less free disk than the model needs.
 
 ## Contributing
 
